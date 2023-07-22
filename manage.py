@@ -7,6 +7,7 @@ import sys
 def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'foreignwords.settings')
+    # Dodaj ścieżkę do katalogu 'scripts'
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
@@ -15,7 +16,11 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
+
+    sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'generator', 'scripts'))
+    
     execute_from_command_line(sys.argv)
+
 
 
 if __name__ == '__main__':
