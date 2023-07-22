@@ -35,15 +35,32 @@ def data_to_models(data):
     except Exception as e:
         print(f"An error occured at data_to_models: {str(e)}")
 
+
+def elements_count(data):
+    total_keys_in_file = len(data.keys())
+    total_values_in_file = len(data.values())
+
+    total_keys_in_db = KeyModel.objects.all().count()
+    total_values_in_db = ValueModel.objects.all().count()
+
+    try:
+        if (total_keys_in_file == total_keys_in_db) and (total_values_in_file == total_values_in_db):
+            sys.exit("All items from the file have been added to the database.")
+    except Exception as e:
+        print(
+            f"Not all items in the file were added correctly.\n{total_keys_in_file}/{total_keys_in_db}\n{total_values_in_file}/{total_values_in_db}")
+
+
 def run():
     # path settings
     current_directory = os.path.dirname(__file__)
-    json_file_path = "../../static/data"
-    json_file_name = "/words.json"
+    json_file_path = "../../static/data/"
+    json_file_name = "words.json"
     file_path = os.path.join(current_directory, json_file_path+json_file_name)
 
     data = import_from_file(file_path)
     data_to_models(data)
+    elements_count(data)
 
 
 if __name__ == "__main__":
