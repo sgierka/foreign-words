@@ -1,6 +1,8 @@
-from generator.models import KeyModel, ValueModel
 import json
 import os
+import sys
+
+from generator.models import Meaning, Word
 
 
 def import_from_file(file_path):
@@ -18,50 +20,57 @@ def import_from_file(file_path):
 
 
 def data_to_models(data):
+    count_meanings = 0
 
     try:
-        for key_name, value_name in data.items():
-            key_model, _ = KeyModel.objects.get_or_create(key=key_name)
-
-            if isinstance(value_name, list):
-                for value in value_name:
-                    ValueModel.objects.create(
-                        key_name=key_model, value_name=value)
-            elif isinstance(value_name, dict):
-                for sub_key, sub_values in value_name.items():
-                    for value in sub_values:
-                        ValueModel.objects.create(
-                            key_name=key_model, value_name=value)
+        for word, meaning in data.items():
+            word_obj, created = Word.objects.get_or_create(word=word)
+            if isinstance(meaning, list):
+                meaning_obj = Meaning.objects.get_or_create(
+                    word=word_obj, meaning=meaning)
+                count_meanings += 1
+            elif isinstance(meaning, dict):
+                for sub_key, sub_meaning in meaning.items():
+                    meaning_obj = Meaning.objects.get_or_create(
+                        word=word_obj, meaning=sub_meaning)
+                    count_meanings += 1
+        return count_meanings
     except Exception as e:
         print(f"An error occured at data_to_models: {str(e)}")
-
-
-def elements_count(data):
-    total_keys_in_file = len(data.keys())
-    total_values_in_file = len(data.values())
-
-    total_keys_in_db = KeyModel.objects.all().count()
-    total_values_in_db = ValueModel.objects.all().count()
-
-    try:
-        if (total_keys_in_file == total_keys_in_db) and (total_values_in_file == total_values_in_db):
-            sys.exit("All items from the file have been added to the database.")
-    except Exception as e:
-        print(
-            f"Not all items in the file were added correctly.\n{total_keys_in_file}/{total_keys_in_db}\n{total_values_in_file}/{total_values_in_db}")
 
 
 def run():
     # path settings
     current_directory = os.path.dirname(__file__)
+    print(current_directory)
     json_file_path = "../../static/data/"
-    json_file_name = "words.json"
+    json_file_name = "test_data.json"
     file_path = os.path.join(current_directory, json_file_path+json_file_name)
 
     data = import_from_file(file_path)
-    data_to_models(data)
-    elements_count(data)
 
+    total_words_in_file = len(data.keys())
+    total_meanings_in_file = data_to_models(data)
+    total_words_in_db = Word.objects.all().count()
+    total_meanings_in_db = Meaning.objects.all().count()
 
+    stats = f"\nWords in file:{total_words_in_file}\nWords in database: {total_words_in_db}\nMeanings in file: {total_meanings_in_file}\nMeanings in database: {total_meanings_in_db}"
+
+    try:
+        if (total_words_in_file == total_words_in_db) and (total_meanings_in_file == total_meanings_in_db):
+            print("All items from the file have been added to the database.", stats)
+            sys.exit()
+    except Exception as e:
+        print(
+            f"Not all items in the file were added correctly.", stats)
+
+    # print(f"Counting amounts...\n{total_words_in_file}/{total_words_in_db}\n{total_meanings_in_file}/{total_meanings_in_db}")
+    # try:
+    #     if (total_words_in_file == total_words_in_db) and (total_meanings_in_file == total_meanings_in_db):
+    #         print(f"All items from the file have been added to the database.\n{total_words_in_file}/{total_words_in_db}\n{total_meanings_in_file}/{total_meanings_in_db}")
+    #         sys.exit("looooool")
+    # except Exception as e:
+    #     print(
+    #         f"Not all items in the file were added correctly.\n{total_words_in_file}/{total_words_in_db}\n{total_meanings_in_file}/{total_meanings_in_db}")
 if __name__ == "__main__":
     run()
