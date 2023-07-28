@@ -24,15 +24,18 @@ def data_to_models(data):
 
     try:
         for word, meaning in data.items():
+            
             word_obj, created = Word.objects.get_or_create(word=word)
             if isinstance(meaning, list):
+                joined_meaning = ', '.join(meaning)
                 meaning_obj = Meaning.objects.get_or_create(
-                    word=word_obj, meaning=meaning)
+                    word=word_obj, meaning=joined_meaning)
                 count_meanings += 1
             elif isinstance(meaning, dict):
                 for sub_key, sub_meaning in meaning.items():
+                    joined_sub_meaning = ', '.join(sub_meaning)
                     meaning_obj = Meaning.objects.get_or_create(
-                        word=word_obj, meaning=sub_meaning)
+                        word=word_obj, meaning=joined_sub_meaning)
                     count_meanings += 1
         return count_meanings
     except Exception as e:
