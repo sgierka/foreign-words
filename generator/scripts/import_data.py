@@ -20,24 +20,44 @@ def import_from_file(file_path):
 
 
 def data_to_models(data):
-    count_meanings = 0
+    """Assumed data model in JSON:
+    v    "abaja": [
+        "sukmana",
+        "płaszcz",
+        "okrycie",
+        "burka"
+    ],
+    "abakus": {
+        "1": [
+            "(rzadziej) abak"
+        ],
+        "2": [
+            "liczydło",
+            "maszyna licząca",
+            "arytmometr"
+        ]
+    },
+    """
+    meanings_count = 0
 
     try:
         for word, meaning in data.items():
-            
+            # if there's no 'Word' in database - create
             word_obj, created = Word.objects.get_or_create(word=word)
+
             if isinstance(meaning, list):
                 joined_meaning = ', '.join(meaning)
                 meaning_obj = Meaning.objects.get_or_create(
                     word=word_obj, meaning=joined_meaning)
-                count_meanings += 1
+                meanings_count += 1
+
             elif isinstance(meaning, dict):
                 for sub_key, sub_meaning in meaning.items():
                     joined_sub_meaning = ', '.join(sub_meaning)
                     meaning_obj = Meaning.objects.get_or_create(
                         word=word_obj, meaning=joined_sub_meaning)
-                    count_meanings += 1
-        return count_meanings
+                    meanings_count += 1
+        return meanings_count
     except Exception as e:
         print(f"An error occured at data_to_models: {str(e)}")
 
@@ -52,10 +72,13 @@ def run():
 
     data = import_from_file(file_path)
 
-    total_words_in_file = len(data.keys())
-    total_meanings_in_file = data_to_models(data)
-    total_words_in_db = Word.objects.all().count()
-    total_meanings_in_db = Meaning.objects.all().count()
+    try:
+        total_words_in_file = len(data.keys())
+        total_meanings_in_file = data_to_models(data)
+        total_words_in_db = Word.objects.all().count()
+        total_meanings_in_db = Meaning.objects.all().count()
+    except Exception as e:
+        print(f"An error occured while trying to prepare stats: {str(e)}")
 
     stats = f"\nWords in file:{total_words_in_file}\nWords in database: {total_words_in_db}\nMeanings in file: {total_meanings_in_file}\nMeanings in database: {total_meanings_in_db}"
 
@@ -64,16 +87,9 @@ def run():
             print("All items from the file have been added to the database.", stats)
             sys.exit()
     except Exception as e:
-        print(
-            f"Not all items in the file were added correctly.", stats)
+        print(stats,
+              f"An error occures: \nstr{(e)}")
 
-    # print(f"Counting amounts...\n{total_words_in_file}/{total_words_in_db}\n{total_meanings_in_file}/{total_meanings_in_db}")
-    # try:
-    #     if (total_words_in_file == total_words_in_db) and (total_meanings_in_file == total_meanings_in_db):
-    #         print(f"All items from the file have been added to the database.\n{total_words_in_file}/{total_words_in_db}\n{total_meanings_in_file}/{total_meanings_in_db}")
-    #         sys.exit("looooool")
-    # except Exception as e:
-    #     print(
-    #         f"Not all items in the file were added correctly.\n{total_words_in_file}/{total_words_in_db}\n{total_meanings_in_file}/{total_meanings_in_db}")
+
 if __name__ == "__main__":
     run()
