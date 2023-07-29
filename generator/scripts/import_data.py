@@ -1,9 +1,19 @@
 import json
 import os
 import sys
-
+import time
 from generator.models import Meaning, Word
 
+
+def measure_execution_time(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"Execution time of {func.__name__}: {execution_time:.6f} seconds")
+        return result
+    return wrapper
 
 def import_from_file(file_path):
     try:
@@ -19,9 +29,10 @@ def import_from_file(file_path):
         print(f"An error occured: {str(e)}")
 
 
+@measure_execution_time
 def data_to_models(data):
     """Assumed data model in JSON:
-    v    "abaja": [
+        "abaja": [
         "sukmana",
         "płaszcz",
         "okrycie",
@@ -38,9 +49,8 @@ def data_to_models(data):
         ]
     },
     """
-    meanings_count = 0
-
     try:
+
         for word, meaning in data.items():
             # if there's no 'Word' in database - create
             word_obj, created = Word.objects.get_or_create(word=word)
@@ -81,7 +91,7 @@ def run():
         print(f"An error occured while trying to prepare stats: {str(e)}")
 
     stats = f"\nWords in file:{total_words_in_file}\nWords in database: {total_words_in_db}\nMeanings in file: {total_meanings_in_file}\nMeanings in database: {total_meanings_in_db}"
-
+    print(stats)
     try:
         if (total_words_in_file == total_words_in_db) and (total_meanings_in_file == total_meanings_in_db):
             print("All items from the file have been added to the database.", stats)
