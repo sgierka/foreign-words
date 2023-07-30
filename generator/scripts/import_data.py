@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from generator.models import Meaning, Word
+from django.db import transaction
 
 
 def measure_execution_time(func):
@@ -11,9 +12,11 @@ def measure_execution_time(func):
         result = func(*args, **kwargs)
         end_time = time.time()
         execution_time = end_time - start_time
-        print(f"Execution time of {func.__name__}: {execution_time:.6f} seconds")
+        print(
+            f"Execution time of {func.__name__}: {execution_time:.6f} seconds")
         return result
     return wrapper
+
 
 def import_from_file(file_path):
     try:
@@ -50,24 +53,41 @@ def data_to_models(data):
     },
     """
     try:
+        with transaction.atomic():
+            Word.objects.all().delete()
+            Meaning.objects.all().delete()
 
-        for word, meaning in data.items():
-            # if there's no 'Word' in database - create
-            word_obj, created = Word.objects.get_or_create(word=word)
+            words_to_create = []
+            meanings_to_create = []
 
-            if isinstance(meaning, list):
-                joined_meaning = ', '.join(meaning)
-                meaning_obj = Meaning.objects.get_or_create(
-                    word=word_obj, meaning=joined_meaning)
-                meanings_count += 1
+            for word, meaning in data.items():
+                # if there's no 'Word' in database - create
+                if not Word.objects.filter(word=word).exists():
+                    word_obj = Word(word=word)
+                    words_to_create.append(Word(word=word))
 
-            elif isinstance(meaning, dict):
-                for sub_key, sub_meaning in meaning.items():
-                    joined_sub_meaning = ', '.join(sub_meaning)
-                    meaning_obj = Meaning.objects.get_or_create(
-                        word=word_obj, meaning=joined_sub_meaning)
-                    meanings_count += 1
-        return meanings_count
+            # Save the Word objects first
+            Word.objects.bulk_create(words_to_create)
+
+            # Fetch all Word objects from the database
+            words_in_db = Word.objects.all()
+
+            for word, meaning in data.items():
+                word_obj = words_in_db.get(word=word)
+
+                if isinstance(meaning, list):
+                    joined_meaning = ', '.join(meaning)
+                    meanings_to_create.append(
+                        Meaning(word=word_obj, meaning=joined_meaning))
+                elif isinstance(meaning, dict):
+                    for sub_key, sub_meaning in meaning.items():
+                        joined_sub_meaning = ', '.join(sub_meaning)
+                        meanings_to_create.append(
+                            Meaning(word=word_obj, meaning=joined_sub_meaning))
+
+            Meaning.objects.bulk_create(meanings_to_create)
+        return len(meanings_to_create)
+
     except Exception as e:
         print(f"An error occured at data_to_models: {str(e)}")
 
@@ -77,7 +97,7 @@ def run():
     current_directory = os.path.dirname(__file__)
     print(current_directory)
     json_file_path = "../../static/data/"
-    json_file_name = "test_data.json"
+    json_file_name = "words.json"
     file_path = os.path.join(current_directory, json_file_path+json_file_name)
 
     data = import_from_file(file_path)
@@ -87,17 +107,18 @@ def run():
         total_meanings_in_file = data_to_models(data)
         total_words_in_db = Word.objects.all().count()
         total_meanings_in_db = Meaning.objects.all().count()
+        
     except Exception as e:
         print(f"An error occured while trying to prepare stats: {str(e)}")
 
     stats = f"\nWords in file:{total_words_in_file}\nWords in database: {total_words_in_db}\nMeanings in file: {total_meanings_in_file}\nMeanings in database: {total_meanings_in_db}"
-    print(stats)
+
     try:
         if (total_words_in_file == total_words_in_db) and (total_meanings_in_file == total_meanings_in_db):
             print("All items from the file have been added to the database.", stats)
             sys.exit()
     except Exception as e:
-        print(stats,
+        print(
               f"An error occures: \nstr{(e)}")
 
 
